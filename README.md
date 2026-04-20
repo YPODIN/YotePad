@@ -1,3 +1,6 @@
+<img width="500" height="500" alt="Yotepad" src="https://github.com/user-attachments/assets/e81ee53b-9d87-4e3e-8679-8aac38b89a81" />
+
+
 # YotePad v1.0.0 - No Nonsense Notepad
 
 YotePad is a fully functional Notepad replacement for Windows 11. It preserves all the legacy features you depend on while removing the modern noise and complexity.
