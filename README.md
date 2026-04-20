@@ -1,5 +1,7 @@
 # YotePad v1.0.0 - No Nonsense Notepad
 
+YotePad is a fully functional Notepad replacement for Windows 11. It preserves all the legacy features you depend on while removing the modern noise and complexity.
+
 Written in C#. The cold start is the slowest part of the app while the .NET environment initializes. After that initial launch, it is fast.
 
 Note on File Size: This is a self-contained release, which is why the installer is 34MB. It includes all necessary components so you do not have to install a separate .NET runtime.
@@ -16,7 +18,7 @@ The Philosophy
 
 Key Features
 
-  Clean Auto Recovery: Background protection that deletes its own footprints on a normal save or exit.
+  Clean Auto Recovery: Background protection that maintains a single, active snapshot. This only triggers in the event of a crash. Under    normal operation, the engine is self-cleaning and deletes all temporary traces immediately upon a standard save or exit.
   
   <img width="546" height="413" alt="image" src="https://github.com/user-attachments/assets/dba7f735-aa81-4f9b-bb5a-d1c2041157fb" />
   <img width="586" height="493" alt="image" src="https://github.com/user-attachments/assets/f98d2d2a-b4c5-45a1-9c82-6253e3aa6119" />
