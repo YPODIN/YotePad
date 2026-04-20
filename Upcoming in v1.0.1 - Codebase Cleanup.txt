@@ -1,0 +1,10 @@
+Upcoming in v1.0.1: Codebase Cleanup
+The v1.0.0 launch is stable and out in the wild. Following a post-launch code review, the next minor release (v1.0.1) will focus on stripping out a few lingering artifacts and redundant code to keep the architecture as lean as possible.
+
+Planned Changes:
+
+UI De-cluttering: Removing the Encoding option from the File menu. The interactive Status Bar is the primary and fastest way to toggle encodings, making the File menu option unnecessary bloat.
+
+Dead Code Removal: Stripping out the UI sync logic (UpdateUIState lines 641 to 654) that managed the checkmarks for the redundant File menu encoding options.
+
+P/Invoke Consolidation: Cleaning up HelpDialog.cs. Duplicate native Windows API declarations (DwmSetWindowAttribute and SetWindowTheme) will be removed and routed properly through the central NativeMethods.cs file.
