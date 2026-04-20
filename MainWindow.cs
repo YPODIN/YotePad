@@ -10,12 +10,15 @@ namespace Yotepad
         private readonly SearchService _searchService = new SearchService();
         private FindReplaceDialog? _searchDialog;
         private readonly YoteTextBox _mainTextBox = new YoteTextBox();
+        private readonly Panel _editorHost = new Panel();
+        private readonly LineNumberGutterPanel _lineNumberGutter = new LineNumberGutterPanel();
         private readonly MenuStrip _topMenu = new MenuStrip();
         private readonly StatusStrip _statusBar = new StatusStrip();
         private readonly ToolStripStatusLabel _lblLocation = new ToolStripStatusLabel();
         
         private readonly ToolStripMenuItem _wordWrapMenuItem = new ToolStripMenuItem("Word Wrap");
         private readonly ToolStripMenuItem _statusBarMenuItem = new ToolStripMenuItem("Status Bar");
+        private readonly ToolStripMenuItem _lineNumbersMenuItem = new ToolStripMenuItem("Line Numbers");
         private ToolStripMenuItem _goToLineMenuItem = new ToolStripMenuItem("Go To Line...");
         
         private readonly FileService _fileService = new FileService();
@@ -25,6 +28,18 @@ namespace Yotepad
         
         private bool _isModified = false;
         private IntPtr _iconHandle = IntPtr.Zero;
+
+        private sealed class LineNumberGutterPanel : Panel
+        {
+            public LineNumberGutterPanel()
+            {
+                this.SetStyle(ControlStyles.AllPaintingInWmPaint |
+                              ControlStyles.UserPaint |
+                              ControlStyles.OptimizedDoubleBuffer |
+                              ControlStyles.ResizeRedraw, true);
+                this.UpdateStyles();
+            }
+        }
 
         private void SystemEvents_UserPreferenceChanged(object sender, Microsoft.Win32.UserPreferenceChangedEventArgs e)
         {
@@ -160,6 +175,16 @@ namespace Yotepad
 
         private void SetupEditor()
         {
+            _editorHost.Dock = DockStyle.Fill;
+            _editorHost.Margin = Padding.Empty;
+            _editorHost.Padding = Padding.Empty;
+
+            _lineNumberGutter.Dock = DockStyle.Left;
+            _lineNumberGutter.Width = 48;
+            _lineNumberGutter.Margin = Padding.Empty;
+            _lineNumberGutter.Padding = Padding.Empty;
+            _lineNumberGutter.Paint += (s, e) => DrawLineNumbers(e.Graphics);
+
             _mainTextBox.Multiline = true;
             _mainTextBox.Dock = DockStyle.Fill;
             _mainTextBox.Font = new Font("Consolas", 11F);
@@ -190,8 +215,20 @@ namespace Yotepad
                 }
             };
 
-            this.Controls.Add(_mainTextBox);
-            _mainTextBox.BringToFront();
+            _mainTextBox.ViewportChanged += (s, e) => InvalidateLineNumbers();
+            _mainTextBox.FontChanged += (s, e) =>
+            {
+                UpdateLineNumberGutterWidth();
+                InvalidateLineNumbers();
+            };
+
+            _editorHost.Controls.Add(_mainTextBox);
+            _editorHost.Controls.Add(_lineNumberGutter);
+            this.Controls.Add(_editorHost);
+            _editorHost.BringToFront();
+
+            UpdateLineNumberGutterWidth();
+            InvalidateLineNumbers();
         }
 
         private void SetupStatusBar()
@@ -403,6 +440,17 @@ namespace Yotepad
             _statusBarMenuItem.Checked = true;
             _statusBarMenuItem.CheckedChanged += (s, e) => _statusBar.Visible = _statusBarMenuItem.Checked;
             viewMenu.DropDownItems.Add(_statusBarMenuItem);
+
+            _lineNumbersMenuItem.CheckOnClick = true;
+            _lineNumbersMenuItem.CheckedChanged += (s, e) =>
+            {
+                _lineNumberGutter.Visible = _lineNumbersMenuItem.Checked;
+                UpdateLineNumberGutterWidth();
+                InvalidateLineNumbers();
+            };
+            _lineNumbersMenuItem.Checked = true;
+            viewMenu.DropDownItems.Add(_lineNumbersMenuItem);
+
             viewMenu.DropDownItems.Add(new ToolStripSeparator());
             viewMenu.DropDownItems.Add(new ToolStripMenuItem("Zoom In", null, (s, e) => ZoomIn()) { ShortcutKeyDisplayString = "Ctrl++" });
             viewMenu.DropDownItems.Add(new ToolStripMenuItem("Zoom Out", null, (s, e) => ZoomOut()) { ShortcutKeyDisplayString = "Ctrl+-" });
@@ -436,6 +484,7 @@ namespace Yotepad
             _mainTextBox.WordWrap = _wordWrapMenuItem.Checked;
             _goToLineMenuItem.Enabled = !_wordWrapMenuItem.Checked;
             RefreshTheme();
+            InvalidateLineNumbers();
             
             if (_wordWrapMenuItem.Checked)
             {
@@ -453,6 +502,10 @@ namespace Yotepad
         {
             _themeManager.ApplyTheme(this, _mainTextBox, _topMenu, _statusBar);
             _searchDialog?.ApplyTheme(_themeManager); 
+
+            _lineNumberGutter.BackColor = _themeManager.MenuBackgroundColor;
+            _lineNumberGutter.ForeColor = _themeManager.TextColor;
+            InvalidateLineNumbers();
 
             // Force the status bar popups to inherit the themed colors
             if (_btnLineEnding.DropDown is ToolStripDropDownMenu leMenu)
@@ -617,6 +670,9 @@ namespace Yotepad
             int column = index - _mainTextBox.GetFirstCharIndexFromLine(line);
             _lblLocation.Text = $"Ln {line + 1}, Col {column + 1}";
 
+            if (UpdateLineNumberGutterWidth())
+                InvalidateLineNumbers();
+
             // Update Line Ending UI
             _btnLineEnding.Text = _fileService.CurrentLineEnding switch
             {
@@ -763,6 +819,80 @@ namespace Yotepad
             // If the CloseReason is anything else (like the Installer/Mutex closing the app),
             // it will skip the save prompt entirely and close instantly.
             base.OnFormClosing(e);
+        }
+
+        private bool UpdateLineNumberGutterWidth()
+        {
+            if (!_lineNumbersMenuItem.Checked)
+                return false;
+
+            int lineCount = Math.Max(1, _mainTextBox.Lines.Length);
+            int digits = lineCount.ToString().Length;
+            int textWidth = TextRenderer.MeasureText(new string('9', digits), _mainTextBox.Font).Width;
+            int desiredWidth = Math.Max(36, textWidth + 10);
+
+            if (_lineNumberGutter.Width != desiredWidth)
+            {
+                _lineNumberGutter.Width = desiredWidth;
+                return true;
+            }
+
+            return false;
+        }
+
+        private void InvalidateLineNumbers()
+        {
+            if (_lineNumbersMenuItem.Checked && _lineNumberGutter.IsHandleCreated)
+                _lineNumberGutter.Invalidate();
+        }
+
+        private void DrawLineNumbers(Graphics graphics)
+        {
+            graphics.Clear(_lineNumberGutter.BackColor);
+
+            if (!_lineNumbersMenuItem.Checked || !_lineNumberGutter.Visible) return;
+            if (!_mainTextBox.IsHandleCreated) return;
+
+            int firstVisibleDisplayLine = _mainTextBox.GetFirstVisibleDisplayLine();
+            if (firstVisibleDisplayLine < 0) return;
+
+            int lineHeight = Math.Max(1, _mainTextBox.Font.Height);
+            int visibleRows = (_lineNumberGutter.Height / lineHeight) + 3;
+
+            using (var brush = new SolidBrush(_lineNumberGutter.ForeColor))
+            using (var format = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Near })
+            {
+                int previousCharIndex = -1;
+
+                for (int i = 0; i < visibleRows; i++)
+                {
+                    int displayLine = firstVisibleDisplayLine + i;
+                    int charIndex = _mainTextBox.GetCharIndexFromDisplayLine(displayLine);
+
+                    if (charIndex < 0 || charIndex > _mainTextBox.TextLength)
+                        break;
+
+                    if (i > 0 && charIndex == previousCharIndex)
+                        break;
+
+                    int y = i * lineHeight;
+                    if (y > _lineNumberGutter.Height)
+                        break;
+
+                    bool startsLogicalLine = charIndex == 0 ||
+                                             (_mainTextBox.TextLength > 0 && charIndex <= _mainTextBox.TextLength && _mainTextBox.Text[charIndex - 1] == '\n');
+
+                    if (startsLogicalLine)
+                    {
+                        int logicalLine = _mainTextBox.GetLineFromCharIndex(charIndex);
+                        string lineText = (logicalLine + 1).ToString();
+                        var rect = new RectangleF(0, y, _lineNumberGutter.Width - 6, lineHeight + 2);
+                        graphics.DrawString(lineText, _mainTextBox.Font, brush, rect, format);
+                    }
+
+                    previousCharIndex = charIndex;
+                }
+            }
         }
     }
 
