@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <SelfContained>false</SelfContained>
+    <ApplicationIcon>yotepad.ico</ApplicationIcon>
+    <Company>Yann Perodin</Company>
+    <Product>YotePad</Product>
+    <Description>A real notepad, not whatever Windows 11 did.</Description>
+    <Copyright>Copyright © 2026 Yann Perodin</Copyright>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0</FileVersion>
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+
+</Project>
