@@ -28,6 +28,7 @@ namespace Yotepad
         
         private bool _isModified = false;
         private IntPtr _iconHandle = IntPtr.Zero;
+        private int _lastFirstVisibleDisplayLine = -1;
 
         private sealed class LineNumberGutterPanel : Panel
         {
@@ -409,7 +410,7 @@ namespace Yotepad
             editMenu.DropDownItems.Add(new ToolStripSeparator());
             _goToLineMenuItem.ShortcutKeys = Keys.Control | Keys.G;
             _goToLineMenuItem.Click += (s, e) => ShowGoToLine();
-            _goToLineMenuItem.Enabled = !_wordWrapMenuItem.Checked;
+            _goToLineMenuItem.Enabled = true;
             editMenu.DropDownItems.Add(_goToLineMenuItem);
             editMenu.DropDownItems.Add(new ToolStripSeparator());
             editMenu.DropDownItems.Add(new ToolStripMenuItem("Select All", null, (s, e) => _mainTextBox.SelectAll()) { ShortcutKeys = Keys.Control | Keys.A });
@@ -482,7 +483,6 @@ namespace Yotepad
         private void ToggleWordWrap()
         {
             _mainTextBox.WordWrap = _wordWrapMenuItem.Checked;
-            _goToLineMenuItem.Enabled = !_wordWrapMenuItem.Checked;
             RefreshTheme();
             InvalidateLineNumbers();
             
@@ -527,6 +527,16 @@ namespace Yotepad
             var result = MessageBox.Show($"Do you want to save changes to {_fileService.GetFileName()}?", "YotePad", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
             if (result == DialogResult.Yes) return _fileService.SaveFile(_mainTextBox.Text);
             return result == DialogResult.No;
+        }
+
+        private void InitializeMissingFilePath(string path)
+        {
+            _fileService.SetFilePath(path);
+            _mainTextBox.Text = string.Empty;
+            _mainTextBox.SelectionStart = 0;
+            _isModified = false;
+            _lastRecoveryContent = string.Empty;
+            UpdateUIState();
         }
 
         private void LoadInitialFile(string path)
@@ -632,14 +642,14 @@ namespace Yotepad
         private void ShowGoToLine()
         {
             int currentIndex = _mainTextBox.SelectionStart + _mainTextBox.SelectionLength;
-            int currentLine = _mainTextBox.GetLineFromCharIndex(currentIndex) + 1;
-            int maxLine = _mainTextBox.GetLineFromCharIndex(_mainTextBox.Text.Length) + 1;
+            int currentLine = GetLogicalLineFromCharIndex(currentIndex) + 1;
+            int maxLine = GetLogicalLineCount();
 
             using (var dialog = new GoToLineDialog(_themeManager, currentLine, maxLine))
             {
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                 {
-                    int charIndex = _mainTextBox.GetFirstCharIndexFromLine(dialog.LineNumber - 1);
+                    int charIndex = GetCharIndexFromLogicalLine(dialog.LineNumber - 1);
                     if (charIndex >= 0)
                     {
                         _mainTextBox.SelectionStart = charIndex;
@@ -670,7 +680,22 @@ namespace Yotepad
             int column = index - _mainTextBox.GetFirstCharIndexFromLine(line);
             _lblLocation.Text = $"Ln {line + 1}, Col {column + 1}";
 
+            bool shouldInvalidateLineNumbers = false;
+
             if (UpdateLineNumberGutterWidth())
+                shouldInvalidateLineNumbers = true;
+
+            if (_lineNumbersMenuItem.Checked && _mainTextBox.IsHandleCreated)
+            {
+                int firstVisibleDisplayLine = _mainTextBox.GetFirstVisibleDisplayLine();
+                if (firstVisibleDisplayLine != _lastFirstVisibleDisplayLine)
+                {
+                    _lastFirstVisibleDisplayLine = firstVisibleDisplayLine;
+                    shouldInvalidateLineNumbers = true;
+                }
+            }
+
+            if (shouldInvalidateLineNumbers)
                 InvalidateLineNumbers();
 
             // Update Line Ending UI
@@ -826,7 +851,7 @@ namespace Yotepad
             if (!_lineNumbersMenuItem.Checked)
                 return false;
 
-            int lineCount = Math.Max(1, _mainTextBox.Lines.Length);
+            int lineCount = Math.Max(1, GetLogicalLineCount());
             int digits = lineCount.ToString().Length;
             int textWidth = TextRenderer.MeasureText(new string('9', digits), _mainTextBox.Font).Width;
             int desiredWidth = Math.Max(36, textWidth + 10);
@@ -838,6 +863,56 @@ namespace Yotepad
             }
 
             return false;
+        }
+
+        private int GetLogicalLineCount()
+        {
+            string text = _mainTextBox.Text;
+            if (string.IsNullOrEmpty(text)) return 1;
+
+            int count = 1;
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] == '\n') count++;
+            }
+            return count;
+        }
+
+        private int GetLogicalLineFromCharIndex(int charIndex)
+        {
+            string text = _mainTextBox.Text;
+            if (string.IsNullOrEmpty(text) || charIndex <= 0) return 0;
+
+            if (charIndex > text.Length) charIndex = text.Length;
+
+            int line = 0;
+            for (int i = 0; i < charIndex; i++)
+            {
+                if (text[i] == '\n') line++;
+            }
+            return line;
+        }
+
+        private int GetCharIndexFromLogicalLine(int targetLine)
+        {
+            if (targetLine <= 0) return 0;
+
+            string text = _mainTextBox.Text;
+            int currentLine = 0;
+
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] == '\n')
+                {
+                    currentLine++;
+                    if (currentLine == targetLine)
+                    {
+                        return i + 1;
+                    }
+                }
+            }
+
+            return -1;
         }
 
         private void InvalidateLineNumbers()
@@ -863,6 +938,10 @@ namespace Yotepad
             using (var format = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Near })
             {
                 int previousCharIndex = -1;
+                int firstCharIndex = _mainTextBox.GetCharIndexFromDisplayLine(firstVisibleDisplayLine);
+                if (firstCharIndex < 0 || firstCharIndex > _mainTextBox.TextLength) return;
+
+                int currentLogicalLine = GetLogicalLineFromCharIndex(firstCharIndex);
 
                 for (int i = 0; i < visibleRows; i++)
                 {
@@ -882,10 +961,14 @@ namespace Yotepad
                     bool startsLogicalLine = charIndex == 0 ||
                                              (_mainTextBox.TextLength > 0 && charIndex <= _mainTextBox.TextLength && _mainTextBox.Text[charIndex - 1] == '\n');
 
+                    if (i > 0 && startsLogicalLine)
+                    {
+                        currentLogicalLine++;
+                    }
+
                     if (startsLogicalLine)
                     {
-                        int logicalLine = _mainTextBox.GetLineFromCharIndex(charIndex);
-                        string lineText = (logicalLine + 1).ToString();
+                        string lineText = (currentLogicalLine + 1).ToString();
                         var rect = new RectangleF(0, y, _lineNumberGutter.Width - 6, lineHeight + 2);
                         graphics.DrawString(lineText, _mainTextBox.Font, brush, rect, format);
                     }
