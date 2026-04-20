@@ -22,7 +22,7 @@ Key Features
   <img width="586" height="493" alt="image" src="https://github.com/user-attachments/assets/f98d2d2a-b4c5-45a1-9c82-6253e3aa6119" />
 
 
-  Interactive Status Bar: Toggle CRLF/LF/CR and Encodings (UTF-8/ANSI) with one click.
+  Interactive Status Bar: Toggle CRLF/LF/CR and Encodings (UTF-8/ANSI) with one click. File encoding is automatically detected by YotePad upon opening.
   
  <img width="668" height="439" alt="image" src="https://github.com/user-attachments/assets/ca1923bc-80af-480b-bacd-67bfef940980" />
 
