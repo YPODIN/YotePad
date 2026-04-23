@@ -63,6 +63,7 @@ namespace Yotepad
             if (item.DropDown is ToolStripDropDownMenu dropDown)
             {
                 dropDown.ShowImageMargin = false;
+                dropDown.ShowCheckMargin = true;
                 dropDown.BackColor = MenuBackgroundColor;
                 dropDown.ForeColor = TextColor;
             }
@@ -126,6 +127,20 @@ namespace Yotepad
         }
     }
 
+    protected override void OnRenderImageMargin(ToolStripRenderEventArgs e)
+    {
+        if (!_theme.IsDarkMode)
+        {
+            base.OnRenderImageMargin(e);
+            return;
+        }
+
+        using (SolidBrush brush = new SolidBrush(_theme.MenuBackgroundColor))
+        {
+            e.Graphics.FillRectangle(brush, e.AffectedBounds);
+        }
+    }
+
     protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
     {
         if (!_theme.IsDarkMode)
@@ -135,9 +150,10 @@ namespace Yotepad
         }
 
         int y = e.Item.Height / 2;
+        int startX = 24;
         using (Pen pen = new Pen(Color.FromArgb(70, 70, 70)))
         {
-            e.Graphics.DrawLine(pen, 4, y, e.Item.Width - 4, y);
+            e.Graphics.DrawLine(pen, startX, y, e.Item.Width - 4, y);
         }
     }
 
