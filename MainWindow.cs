@@ -263,7 +263,7 @@ namespace Yotepad
             }
 
             // --- FILE MENU ---
-            var fileMenu = new ToolStripMenuItem("File");
+            var fileMenu = new ToolStripMenuItem("&File");
 
             fileMenu.DropDownItems.Add(new ToolStripMenuItem("New", null, (s, e) => 
             { 
@@ -343,7 +343,7 @@ namespace Yotepad
             });
 
             // --- EDIT MENU ---
-            var editMenu = new ToolStripMenuItem("Edit");
+            var editMenu = new ToolStripMenuItem("&Edit");
             editMenu.DropDownItems.Add(new ToolStripMenuItem("Undo", null, (s, e) => _mainTextBox.Undo()) { ShortcutKeys = Keys.Control | Keys.Z });
             editMenu.DropDownItems.Add(new ToolStripSeparator());
             editMenu.DropDownItems.Add(new ToolStripMenuItem("Cut", null, (s, e) => _mainTextBox.Cut()) { ShortcutKeys = Keys.Control | Keys.X });
@@ -378,7 +378,7 @@ namespace Yotepad
             editMenu.DropDownItems.Add(new ToolStripMenuItem("Time/Date", null, (s, e) => _mainTextBox.SelectedText = DateTime.Now.ToString()) { ShortcutKeys = Keys.F5 });
             
             // --- FORMAT MENU ---
-            var formatMenu = new ToolStripMenuItem("Format");
+            var formatMenu = new ToolStripMenuItem("F&ormat");
             _wordWrapMenuItem.CheckOnClick = true;
             _wordWrapMenuItem.CheckedChanged += (s, e) => ToggleWordWrap();
             _wordWrapMenuItem.Checked = true;
@@ -397,7 +397,7 @@ namespace Yotepad
             }));
 
             // --- VIEW MENU ---
-            var viewMenu = new ToolStripMenuItem("View");
+            var viewMenu = new ToolStripMenuItem("&View");
             _statusBarMenuItem.CheckOnClick = true;
             _statusBarMenuItem.Checked = true;
             _statusBarMenuItem.CheckedChanged += (s, e) => _statusBar.Visible = _statusBarMenuItem.Checked;
@@ -410,8 +410,8 @@ namespace Yotepad
             viewMenu.DropDownItems.Add(new ToolStripMenuItem("Toggle Theme", null, (s, e) => { _themeManager.ToggleTheme(); RefreshTheme(); }));
 
             // --- HELP MENU ---
-            var helpMenu = new ToolStripMenuItem("Help");
-            
+            var helpMenu = new ToolStripMenuItem("&Help");
+
             helpMenu.DropDownItems.Add(new ToolStripMenuItem("View Help", null, (s, e) => 
             {
                 // Grab the colors directly from the text editor to ensure perfect contrast
